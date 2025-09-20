@@ -1,16 +1,20 @@
 ﻿using Microsoft.Extensions.Logging;
 using OpenTelemetry;
 using OpenTelemetry.Exporter;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.Data.SqlClient;
-//using System.Data.SqlClient;
+using System.Data.SqlClient;
+//using Microsoft.Data.SqlClient;
+
 
 namespace ConsoleAppOpenTelemetery
 {
@@ -24,7 +28,9 @@ namespace ConsoleAppOpenTelemetery
             Console.WriteLine("Hello World");
 
             var tracingOtlpEndpoint = "http://localhost:4317/";
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             var tracerProvider = Sdk.CreateTracerProviderBuilder()
+                .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("Net48Service"))
                 .AddSource(ServiceName)
                 //.AddJaegerExporter(o =>
                 //{
@@ -38,11 +44,18 @@ namespace ConsoleAppOpenTelemetery
                 //.AddHttpClientInstrumentation()
                 .AddConsoleExporter()
                 .AddZipkinExporter(o => { o.ExportProcessorType = ExportProcessorType.Simple; })
+                //.AddOtlpExporter()
+                //.UseOtlpExporter(OtlpExportProtocol.HttpProtobuf, new Uri("http://localhost:4318/"))
                 .AddOtlpExporter(o =>
                 {
-                    o.Endpoint = new Uri("http://localhost:4317");
-                    o.BatchExportProcessorOptions.ExporterTimeoutMilliseconds = 100;
+                    //it doesn't work properly
+                    //https://github.com/open-telemetry/opentelemetry-dotnet/blob/main/src/OpenTelemetry.Exporter.OpenTelemetryProtocol/README.md#configuration
+
+                    o.Endpoint = new Uri("http://localhost:4318/v1/traces");
+                    o.Protocol = OtlpExportProtocol.HttpProtobuf;
+                    //o.BatchExportProcessorOptions.ExporterTimeoutMilliseconds = 10000;
                     o.ExportProcessorType = ExportProcessorType.Simple;
+                    //o.TimeoutMilliseconds = 1000;
                     //    = new BatchExportProcessorOptions
                     //{
                     //    MaxQueueSize = 2048,
@@ -51,7 +64,13 @@ namespace ConsoleAppOpenTelemetery
                     //    MaxExportBatchSize = 512,
                     //};
                     //o.Endpoint = new Uri("http://localhost:4318"); // Your OTLP collector endpoint
-                    o.Protocol = OtlpExportProtocol.HttpProtobuf;
+                    //o.Protocol = OtlpExportProtocol.Grpc;
+                    //o.HttpClientFactory = () =>
+                    //{
+                    //    HttpClient client = new HttpClient();
+                    //    client.DefaultRequestHeaders.Add("X-MyCustomHeader", "value");
+                    //    return client;
+                    //};
 
                 })
                 .Build();
