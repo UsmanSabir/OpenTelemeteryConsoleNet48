@@ -1,0 +1,14 @@
+---
+#https://github.com/prometheus-community/windows_exporter/blob/master/docs/collector.performancecounter.md
+collectors:
+  enabled: performancecounter #,cpu
+
+collector:
+  performancecounter:
+    objects: |-
+      - name: ServiceModelOperation
+        object: "ServiceModelOperation 4.0.0.0"
+        instances: ["*"]
+        counters:
+          - name: "Calls Per Second"
+            
