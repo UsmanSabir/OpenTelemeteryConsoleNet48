@@ -16,4 +16,14 @@ collector:
         counters:
           - name: "Calls Per Second"
           - name: "Calls"
+          - name: "Calls Outstanding"
+          - name: "Calls Failed"
+          
+          
+      - name: ServiceModelEndpoint
+        object: "ServiceModelEndpoint 4.0.0.0"
+        instances: ["*"]
+        counters:
+          - name: "Messages Sent/sec"
+          - name: "Messages Received/sec"
           
