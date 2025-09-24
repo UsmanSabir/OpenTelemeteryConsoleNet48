@@ -1,7 +1,11 @@
-﻿using System.Diagnostics;
+﻿#define Signoz
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
 using OpenTelemetry;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Trace;
+using System.Diagnostics;
 
 namespace ConsoleApp1
 {
@@ -13,7 +17,30 @@ namespace ConsoleApp1
         static void Main(string[] args)
         {
             Console.WriteLine("Hello, World!2");
-            Console.WriteLine("Hello World");
+            var netVersion = "Net-8";
+
+            //using ILoggerFactory factory = LoggerFactory.Create(builder => builder.AddConsole());
+            //ILogger logger = factory.CreateLogger("Program");
+            //logger.LogInformation("Hello World! Logging is {Description}.", "fun");
+
+
+            var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                //builder.AddConsole();
+                builder.AddOpenTelemetry(options =>
+                {
+                    options.IncludeScopes = true;
+                    options.IncludeFormattedMessage = true;
+                    options.AddOtlpExporter(o =>
+                    {
+                        o.Endpoint = new Uri("http://localhost:4317");
+                        o.Protocol = OtlpExportProtocol.Grpc;
+                    });
+                });
+            });
+
+            var logger = loggerFactory.CreateLogger("WcfLogger");
+            logger.LogInformation("OpenTelemetry initialized for WCF service.");
 
             var tracingOtlpEndpoint = "http://localhost:4317/";
             var tracerProvider = Sdk.CreateTracerProviderBuilder()
@@ -33,18 +60,38 @@ namespace ConsoleApp1
                 {
                     o.ExportProcessorType = ExportProcessorType.Simple;
                 })
-                .AddOtlpExporter(o => o.Endpoint = new Uri("http://localhost:4317"))
+#if Signoz
+                .AddOtlpExporter(o => 
+                {
+                    //o.Endpoint = new Uri("http://localhost:4317");
+                    o.Endpoint = new Uri("http://localhost:4317");
+                    o.Protocol = OtlpExportProtocol.Grpc;
+                })
+#else
+.AddOtlpExporter(o => 
+                {
+                    o.Endpoint = new Uri("http://localhost:4317");
+                })
+#endif
                 .Build();
 
             var activity = ActivitySource.StartActivity("Service Operation", ActivityKind.Server);
-
+            logger.LogInformation("{Net} Logs started {aid}", netVersion, activity.Id);
+            
             if (activity != null)
             {
                 activity.SetTag("rpc.system", "wcf");
                 activity.SetTag("rpc.service", "FullName");
                 activity.SetTag("rpc.method", "request.Headers.Action");
             }
+            
             Db();
+
+            var random = new Random();
+            int randomValue = random.Next(1, 100); // Generates a random integer between 1 and 99
+            logger.LogInformation("{Net} Structured log with random value: {RandomValue}", netVersion, randomValue);
+
+            logger.LogInformation("{Net} Logs complete {aid}", netVersion, activity.Id);
 
             activity.Stop();
             Console.WriteLine("done");

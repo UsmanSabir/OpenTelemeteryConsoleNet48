@@ -1,10 +1,14 @@
-﻿using Microsoft.Extensions.Logging;
+﻿#define Signoz
+
+using Microsoft.Extensions.Logging;
 using OpenTelemetry;
 using OpenTelemetry.Exporter;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
@@ -12,7 +16,6 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using System.Data.SqlClient;
 //using Microsoft.Data.SqlClient;
 
 
@@ -26,8 +29,26 @@ namespace ConsoleAppOpenTelemetery
         static void Main(string[] args)
         {
             Console.WriteLine("Hello World");
+            var netVersion = "Net48";
 
-            var tracingOtlpEndpoint = "http://localhost:4317/";
+
+            var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                //builder.AddConsole();
+                builder.AddOpenTelemetry(options =>
+                {
+                    options.IncludeScopes = true;
+                    options.IncludeFormattedMessage = true;
+                    options.AddOtlpExporter(o =>
+                    {
+                        //o.Endpoint = new Uri("http://localhost:4317");
+                    });
+                });
+            });
+
+            var logger = loggerFactory.CreateLogger("WcfLogger");
+            logger.LogInformation("OpenTelemetry initialized for WCF service.");
+
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             var tracerProvider = Sdk.CreateTracerProviderBuilder()
                 .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("Net48Service"))
@@ -46,6 +67,12 @@ namespace ConsoleAppOpenTelemetery
                 .AddZipkinExporter(o => { o.ExportProcessorType = ExportProcessorType.Simple; })
                 //.AddOtlpExporter()
                 //.UseOtlpExporter(OtlpExportProtocol.HttpProtobuf, new Uri("http://localhost:4318/"))
+#if Signoz
+                .AddOtlpExporter(o =>
+                    {
+                        //o.Endpoint = new Uri("http://localhost:4318");
+                    })
+#else
                 .AddOtlpExporter(o =>
                 {
                     //it doesn't work properly
@@ -71,12 +98,12 @@ namespace ConsoleAppOpenTelemetery
                     //    client.DefaultRequestHeaders.Add("X-MyCustomHeader", "value");
                     //    return client;
                     //};
-
                 })
+#endif
                 .Build();
 
             var activity = ActivitySource.StartActivity("My48 Service Operation", ActivityKind.Server);
-
+            logger.LogInformation("{Net} Logs started {aid}", netVersion, activity.Id);
             if (activity != null)
             {
                 activity.SetTag("rpc.system", "wcf");
@@ -85,6 +112,13 @@ namespace ConsoleAppOpenTelemetery
             }
 
             Db();
+
+            var random = new Random();
+            int randomValue = random.Next(1, 100); // Generates a random integer between 1 and 99
+            logger.LogInformation("{Net} Structured log with random value: {RandomValue}", netVersion, randomValue);
+
+            logger.LogInformation("{Net} Logs complete {aid}", netVersion, activity.Id);
+
 
             activity.Stop();
             activity.Dispose();
