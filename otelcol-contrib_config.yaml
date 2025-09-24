@@ -1,0 +1,78 @@
+receivers:
+  windowsperfcounters/wcf:
+    metrics:
+      wcf.requests:
+        description: the number of wcf requests
+        unit: By
+        gauge:
+        
+    collection_interval: 30s
+    perfcounters:
+      - object: "ServiceModelOperation 4.0.0.0"
+        instances: ["*"]
+        counters:
+          - name: "Calls"
+            metric: wcf.requests
+          - name: "Calls Per Second"
+          - name: "Calls Outstanding"
+          - name: "Calls Failed"
+
+      # - object: "ServiceModelEndpoint 4.0.0.0"
+        # instances: ["*"]
+        # counters:
+          # - name: "Messages Sent/sec"
+          # - name: "Messages Received/sec"
+
+              
+exporters:
+  # Data sources: traces, metrics, logs
+  file:
+    path: ./exported-data.json
+
+  # Data sources: traces
+  otlp/jaeger:
+    endpoint: jaeger-server:4317
+  
+  # Data sources: traces, metrics, logs
+  # NOTE: Prior to v0.86.0 use `logging` instead of `debug`
+  debug:
+    verbosity: detailed
+
+  # Data sources: traces, metrics, logs
+  otlp:
+    endpoint: http://localhost:4317
+    tls:
+      insecure: true
+  # Data sources: traces, metrics
+  otlphttp:
+    endpoint: http://localhost:4318
+    tls:
+      insecure: true
+
+  # Data sources: metrics
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: default
+
+  # Data sources: metrics
+  prometheusremotewrite:
+    endpoint: http://prometheus.example.com:9411/api/prom/push
+    # When using the official Prometheus (running via Docker)
+    # endpoint: 'http://prometheus:9090/api/v1/write', add:
+    # tls:
+    #   insecure: true
+
+  # Data sources: traces
+  zipkin:
+    endpoint: http://localhost:9411/api/v2/spans
+
+processors:
+  batch:
+  
+  
+service:
+  pipelines:
+    metrics:
+      receivers: [windowsperfcounters/wcf]
+      exporters: [debug,file,otlp]
+    
