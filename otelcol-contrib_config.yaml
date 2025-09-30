@@ -1,4 +1,64 @@
 receivers:
+  # Collect Windows performance counters
+  windowsperfcounters:
+    metrics:
+      processor.time.total:
+        description: Total CPU active and idle time
+        unit: "%"
+        gauge:
+    collection_interval: 5s
+    perfcounters:
+      - object: "Processor"
+        instances:
+            - "_Total"
+        counters:
+          - name: "% Processor Time"
+            metric: processor.time.total
+          
+      # - object: "Processor"
+        # instances:
+            # - "_Total"
+        # counters:
+          # - name: "% Processor Time"
+            # metric: processor.time.total
+            
+      # - object: "Memory"
+        # counters:
+          # - name: "memory.committed"
+            # # metric: "windows.memory.committed"
+          # - name: "memory.available"
+      # - object: "PhysicalDisk"
+        # instances: ["_Total"]
+        # counters:
+          # - name: "disk.read.bytes"
+            # # metric: "windows.disk.read_bytes"
+          # - name: "disk.write.bytes"
+            # # metric: "windows.disk.write.bytes"
+      # - object: "Network Interface"
+        # instances: ["*"]
+        # counters:
+          # - name: "network.bytes.sent"
+            # # metric: "windows.network.bytes.sent"
+          # - name: "network.bytes.received"
+            # # metric: "windows.network.bytes.received"
+ 
+      
+      
+      
+  # Collect Windows Event Logs (System & Application)
+  windowseventlog:
+    channel: System
+    start_at: end
+  windowseventlog/app:
+    channel: Application
+    start_at: end
+
+  # Receive OTLP telemetry from apps (like ASP.NET Core)
+  otlp:
+    protocols:
+      grpc:
+      http:
+
   windowsperfcounters/wcf:
     metrics:
       wcf.requests:
@@ -39,32 +99,54 @@ exporters:
     verbosity: detailed
 
   # Data sources: traces, metrics, logs
-  otlp:
-    endpoint: http://localhost:4317
-    tls:
-      insecure: true
-  # Data sources: traces, metrics
-  otlphttp:
-    endpoint: http://localhost:4318
-    tls:
-      insecure: true
+  # otlp:
+    # endpoint: http://localhost:4317
+    # tls:
+      # insecure: true
+  # # Data sources: traces, metrics
+  # otlphttp:
+    # endpoint: http://localhost:4318
+    # tls:
+      # insecure: true
 
   # Data sources: metrics
   prometheus:
     endpoint: 0.0.0.0:8889
     namespace: default
 
+  otlp/tempo:
+    endpoint: "localhost:14319"
+    tls:
+      insecure: true
+      
+  # loki:
+    # endpoint: "http://localhost:3100/loki/api/v1/push"
+    # default_labels_enabled:
+      # exporter: true
+      # job: true
+      # instance: true
+      
+  otlphttp/loki: 
+    # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/release/v0.130.x/exporter/lokiexporter/README.md#migration-instructions
+    # https://github.com/grafana/grafana-opentelemetry-dotnet/blob/main/docs/configuration.md
+    #endpoint: http://localhost:3100/otlp/v1/logs
+    endpoint: http://localhost:3100/otlp
+    labels:
+      attributes:
+        trace_id: traceid
+        span_id: spanid
+      
   # Data sources: metrics
-  prometheusremotewrite:
-    endpoint: http://prometheus.example.com:9411/api/prom/push
+  # prometheusremotewrite:
+    # endpoint: http://prometheus.example.com:9411/api/prom/push
     # When using the official Prometheus (running via Docker)
     # endpoint: 'http://prometheus:9090/api/v1/write', add:
     # tls:
     #   insecure: true
 
   # Data sources: traces
-  zipkin:
-    endpoint: http://localhost:9411/api/v2/spans
+  # zipkin:
+    # endpoint: http://localhost:9411/api/v2/spans
 
 processors:
   batch:
@@ -73,6 +155,16 @@ processors:
 service:
   pipelines:
     metrics:
-      receivers: [windowsperfcounters/wcf]
-      exporters: [debug,file,otlp]
+      receivers: [windowsperfcounters,windowsperfcounters/wcf,otlp]
+      processors: [batch]
+      exporters: [prometheus,file]
     
+    logs:
+      receivers: [windowseventlog, windowseventlog/app, otlp]
+      processors: [batch]
+      exporters: [otlphttp/loki]
+
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug,otlp/tempo]

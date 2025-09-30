@@ -1,0 +1,76 @@
+{
+  "id": null,
+  "title": "Starter: Metrics, Logs & Traces",
+  "tags": ["starter", "node", "loki", "tempo"],
+  "timezone": "browser",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "CPU Usage (%)",
+      "targets": [
+        {
+          "expr": "100 - (avg by(instance)(irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory Usage (%)",
+      "targets": [
+        {
+          "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+          "legendFormat": "used"
+        }
+      ],
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Disk Usage (%)",
+      "targets": [
+        {
+          "expr": "(1 - (node_filesystem_avail_bytes{fstype!=\"tmpfs\"} / node_filesystem_size_bytes{fstype!=\"tmpfs\"})) * 100",
+          "legendFormat": "{{mountpoint}}"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Network Receive/Transmit (bytes/s)",
+      "targets": [
+        {
+          "expr": "irate(node_network_receive_bytes_total[5m])",
+          "legendFormat": "{{device}} RX"
+        },
+        {
+          "expr": "irate(node_network_transmit_bytes_total[5m])",
+          "legendFormat": "{{device}} TX"
+        }
+      ],
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 }
+    },
+    {
+      "type": "logs",
+      "title": "Container Logs (Loki)",
+      "datasource": "Loki",
+      "targets": [
+        {
+          "expr": "{job=\"docker\"}"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 }
+    },
+    {
+      "type": "trace",
+      "title": "Traces (Tempo)",
+      "datasource": "Tempo",
+      "gridPos": { "x": 0, "y": 24, "w": 24, "h": 10 }
+    }
+  ]
+}

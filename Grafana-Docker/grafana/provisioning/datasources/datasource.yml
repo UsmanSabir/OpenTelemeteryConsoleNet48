@@ -1,0 +1,44 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    jsonData:
+      derivedFields:
+        - name: trace_id
+          matcherRegex: "traceid=(\\w+)"
+          url: "/explore?left=%7B%22datasource%22:%22tempo%22,%22queries%22:[%7B%22query%22:%22$${__value.raw}%22%7D]%7D"
+          datasourceUid: tempo   # must match Tempo datasource UID
+
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    jsonData:
+      tracesToLogs:
+        datasourceUid: loki      # must match Loki datasource UID
+        spanStartTimeShift: "-5m"
+        spanEndTimeShift: "5m"
+        # remove "tags" unless you actually have Loki labels called "traceid"
+        mappedTags:
+          - key: service.name
+            value: service
+        filterByTraceID: true
+        filterBySpanID: false
+      traceToLogsV2: true
+
+
+  - name: Alertmanager
+    type: alertmanager
+    access: proxy
+    url: http://alertmanager:9093
