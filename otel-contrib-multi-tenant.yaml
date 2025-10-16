@@ -1,0 +1,140 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+processors:
+  resource/add_tenant:
+    attributes:
+      - key: tenant.id
+        action: upsert
+        # from_attribute: http.header.x-tenant-id
+        from_attribute: service.name
+
+  batch:
+
+exporters:
+  otlp/tenant1:
+    endpoint: otlp-tenant1.grafana.net:4317
+    headers:
+      Authorization: Basic TENANT1_KEY
+    tls:
+      insecure: false
+
+  otlp/tenant2:
+    endpoint: otlp-tenant2.grafana.net:4317
+    headers:
+      Authorization: Basic TENANT2_KEY
+    tls:
+      insecure: false
+
+  otlp/default:
+    endpoint: otlp-default.grafana.net:4317
+    headers:
+      Authorization: Basic DEFAULT_KEY
+    tls:
+      insecure: false
+
+connectors:
+  routing/logs:
+    default_pipelines: [ logs/default ]
+    table:
+      # - context: log
+      #   condition: severity_number < SEVERITY_NUMBER_ERROR
+      #   pipelines: [logs/cheap]
+      - context: resource
+        condition: attributes["tenant.id"] == "tenant1"
+        pipelines: [logs/tenant1]
+      - context: resource
+        condition: attributes["tenant.id"] == "tenant2"
+        pipelines: [logs/tenant2]      
+
+  routing/traces:
+    default_pipelines: [ traces/default ]
+    table:
+      - context: resource
+        condition: attributes["tenant.id"] == "tenant1"
+        pipelines: [traces/tenant1]
+      - context: resource
+        condition: attributes["tenant.id"] == "tenant2"
+        pipelines: [traces/tenant2]
+
+  routing/metrics:
+    default_pipelines: [ metrics/default ]
+    table:
+      - context: resource
+        condition: attributes["tenant.id"] == "tenant1"
+        pipelines: [metrics/tenant1]
+      - context: resource
+        condition: attributes["tenant.id"] == "tenant2"
+        pipelines: [metrics/tenant2]
+
+service:
+  telemetry:
+    logs:
+      level: debug
+
+  pipelines:
+    traces/in:
+      receivers: [otlp]
+      processors: [resource/add_tenant, batch]
+      exporters: [routing/traces]
+
+    logs/in:
+      receivers: [otlp]
+      processors: [resource/add_tenant, batch]
+      exporters: [routing/logs]
+
+    metrics/in:
+      receivers: [otlp]
+      processors: [resource/add_tenant, batch]
+      exporters: [routing/metrics]
+
+    # Default pipelines (fallback)
+    traces/default:
+      receivers: [routing/traces]
+      # processors: [resource/add_tenant, batch]
+      exporters: [otlp/default]
+
+    metrics/default:
+      receivers: [routing/metrics]
+      # processors: [resource/add_tenant, batch]
+      exporters: [otlp/default]
+
+    logs/default:
+      receivers: [routing/logs]
+      # processors: [resource/add_tenant, batch]
+      exporters: [otlp/default]
+
+    # Tenant1 pipelines
+    traces/tenant1:
+      receivers: [routing/traces]
+      processors: [batch]
+      exporters: [otlp/tenant1]
+
+    metrics/tenant1:
+      receivers: [routing/metrics]
+      processors: [batch]
+      exporters: [otlp/tenant1]
+
+    logs/tenant1:
+      receivers: [routing/logs]
+      processors: [batch]
+      exporters: [otlp/tenant1]
+
+    # Tenant2 pipelines
+    traces/tenant2:
+      receivers: [routing/traces]
+      processors: [batch]
+      exporters: [otlp/tenant2]
+
+    metrics/tenant2:
+      receivers: [routing/metrics]
+      processors: [batch]
+      exporters: [otlp/tenant2]
+
+    logs/tenant2:
+      receivers: [routing/logs]
+      processors: [batch]
+      exporters: [otlp/tenant2]
