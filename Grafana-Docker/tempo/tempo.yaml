@@ -22,14 +22,14 @@ compactor:
   compaction:
     block_retention: 1h
 
-metrics_generator:
-  registry:
-    external_labels:
-      source: tempo
-  storage:
-    path: /tmp/tempo
-    remote_write:
-      - url: http://prometheus:9090/api/v1/write
+# metrics_generator:
+  # registry:
+    # external_labels:
+      # source: tempo
+  # storage:
+    # path: /tmp/tempo
+    # remote_write:
+      # - url: http://prometheus:9090/api/v1/write
 
 storage:
   trace:

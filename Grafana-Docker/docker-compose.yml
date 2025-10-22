@@ -2,8 +2,10 @@ version: "3.8"
 
 services:
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:latest
     container_name: grafana
+    environment:
+    - GF_FEATURE_TOGGLES_ENABLE=correlations
     ports:
       - "3000:3000"
     volumes:
@@ -31,7 +33,7 @@ services:
     command: -config.file=/etc/loki/local-config.yaml
 
   tempo:
-    image: grafana/tempo
+    image: grafana/tempo:latest
     container_name: tempo
     ports:
       - "3200:3200"   # Tempo API
