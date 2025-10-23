@@ -1,0 +1,29 @@
+---
+#https://github.com/prometheus-community/windows_exporter/blob/master/docs/collector.performancecounter.md
+# typeperf -q "ServiceModelOperation 4.0.0.0"
+# typeperf "\ServiceModelOperation 4.0.0.0(*)\Calls Per Second"
+# C:\Program Files\windows_exporter> .\windows_exporter.exe --config.file=".\config.yaml"
+
+collectors:
+  enabled: performancecounter #,cpu
+
+collector:
+  performancecounter:
+    objects: |-
+      - name: ServiceModelOperation
+        object: "ServiceModelOperation 4.0.0.0"
+        instances: ["*"]
+        counters:
+          - name: "Calls Per Second"
+          - name: "Calls"
+          - name: "Calls Outstanding"
+          - name: "Calls Failed"
+          
+          
+      - name: ServiceModelEndpoint
+        object: "ServiceModelEndpoint 4.0.0.0"
+        instances: ["*"]
+        counters:
+          - name: "Messages Sent/sec"
+          - name: "Messages Received/sec"
+          
