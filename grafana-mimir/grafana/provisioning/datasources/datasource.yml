@@ -12,7 +12,7 @@ datasources:
     jsonData:
       httpHeaderName1: X-Scope-OrgID
     secureJsonData:
-      httpHeaderValue1: Main
+      httpHeaderValue1: Main #Main Org.
 
   # - name: Tenant1 Metrics
   #   type: prometheus
@@ -66,11 +66,15 @@ datasources:
             - type: logfmt
               field: "msg"
     jsonData:
+      httpHeaderName1: 'X-Scope-OrgID'
       derivedFields:
         - name: trace_id
           matcherRegex: "traceid=(\\w+)"
           url: "/explore?left=%7B%22datasource%22:%22tempo%22,%22queries%22:[%7B%22query%22:%22$${__value.raw}%22%7D]%7D"
-          datasourceUid: tempo   # must match Tempo datasource UID
+          datasourceUid: tempo    
+    secureJsonData:
+      httpHeaderValue1: Main
+
 
   - name: Tempo
     uid: tempo
@@ -78,6 +82,7 @@ datasources:
     access: proxy
     url: http://tempo:3200
     jsonData:
+      httpHeaderName1: 'X-Scope-OrgID'
       # tracesToLogs:
         # datasourceUid: loki      # must match Loki datasource UID
         # spanStartTimeShift: "-5m"
@@ -133,6 +138,9 @@ datasources:
         tag: 'http.path'
       # streamingEnabled:
         # search: true
+    secureJsonData:
+      httpHeaderValue1: Main
+
 
 
   - name: Alertmanager

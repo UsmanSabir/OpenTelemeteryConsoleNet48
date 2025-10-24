@@ -38,3 +38,5 @@ storage:
       path: /tmp/tempo/traces
     wal:
       path: /tmp/tempo/wal
+
+multitenancy_enabled: true
