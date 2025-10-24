@@ -18,7 +18,7 @@ services:
     - GF_FEATURE_TOGGLES_ENABLE=correlations
     ports:
       - "3000:3000"
-    entrypoint: ["/bin/bash", "/etc/grafana/entrypoint.sh"]
+    # entrypoint: ["/bin/bash", "/etc/grafana/entrypoint.sh"]
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning
       - ./grafana/dashboards:/var/lib/grafana/dashboards
@@ -83,6 +83,7 @@ services:
 
 
 # Initialize grafana organizations  
+# Switch to LF from CRLF from vscode bottom right. Ref: https://stevelasker.blog/2016/09/22/running-scripts-in-a-docker-container-from-windows-cr-or-crlf/
   grafana-init:
     # image: curlimages/curl
     # image: stedolan/jq
@@ -95,7 +96,8 @@ services:
     volumes:
       - ./init/create_orgs.sh:/create_orgs.sh
     # entrypoint: ["/bin/sh", "-c", "/create_orgs.sh tenant1 tenant2"]
-    entrypoint: ["/bin/sh", "-c", "/create_orgs.sh"]
+    # entrypoint: ["sh", "/create_orgs.sh"]
+    entrypoint: ["sh", "-c", "/create_orgs.sh $TENANTS"]
     # command: ["tenant1","tenant2","tenant3"]  # these become $@
     # entrypoint:
     #   - /bin/sh
