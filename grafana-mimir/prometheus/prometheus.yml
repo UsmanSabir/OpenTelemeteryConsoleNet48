@@ -5,7 +5,13 @@ global:
 remote_write:
 - url: http://mimir:9009/api/v1/push
   headers: # separate instance for each tenant
-    X-Scope-OrgID: tenant1
+    X-Scope-OrgID: tenant2
+  write_relabel_configs:
+    # Use the extracted tenant ID from metrics
+    - source_labels: ['__tenant__']
+      target_label: 'X-Scope-OrgID'
+      action: replace
+
 
 scrape_configs:
   # Scrape Prometheus itself
@@ -29,6 +35,18 @@ scrape_configs:
       - targets: ["promtail:9080"]
       
   - job_name: 'system-metrics'
+    metrics_path: /metrics
+    honor_labels: true  # Keep original labels from OTEL collector
+    metric_relabel_configs:
+      # Extract tenant ID from metrics labels
+      - source_labels: ['x_scope_orgid']
+        target_label: '__tenant__'
+        action: replace
+      # Make a readable label so you can query it easily: tenant="tenant2"
+      - source_labels: ['X-Scope-OrgID']
+        target_label: 'tenant'
+        action: replace
+
     static_configs:
       - targets: ['host.docker.internal:8889']
         labels:
