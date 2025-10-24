@@ -95,10 +95,17 @@ services:
       - grafana
     volumes:
       - ./init/create_orgs.sh:/create_orgs.sh
+      - ./init/import_dashboards.sh:/import_dashboards.sh
+      # mount dashboards(readonly) so the init container can read JSON dashboard files
+      - ./grafana/dashboards:/dashboards:ro
     # entrypoint: ["/bin/sh", "-c", "/create_orgs.sh tenant1 tenant2"]
     # entrypoint: ["sh", "/create_orgs.sh"]
     entrypoint: ["sh", "-c", "/create_orgs.sh $TENANTS"]
+    #entrypoint: ["/bin/sh", "/create_orgs.sh"]
+
+    # entrypoint: ["sh", "-c", "/create_orgs.sh $${@:-$$TENANTS}"]    
     # command: ["tenant1","tenant2","tenant3"]  # these become $@
+    
     # entrypoint:
     #   - /bin/sh
     #   - -c
@@ -122,3 +129,4 @@ services:
     #   "sleep 15 &&
     #    curl -X POST http://admin:admin@grafana:3000/api/orgs -H 'Content-Type: application/json' -d '{\"name\":\"Tenant1\"}' &&
     #    curl -X POST http://admin:admin@grafana:3000/api/orgs -H 'Content-Type: application/json' -d '{\"name\":\"Tenant2\"}'"
+# call as "docker-compose run --rm -e TENANTS="tenant6 tenant7" grafana-init"

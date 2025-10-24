@@ -32,27 +32,29 @@ wait_for_grafana() {
 # Create or get organization
 create_org() {
   local ORG_NAME="$1"
-  echo "\nChecking organization: $ORG_NAME"
+  echo "\nChecking organization: $ORG_NAME" >&2
   
   local ORG_ID=$(curl -s -u "$GRAFANA_ADMIN_USER:$GRAFANA_ADMIN_PASS" "$GRAFANA_URL/api/orgs" | \
     jq -r --arg name "$ORG_NAME" '.[] | select(.name==$name) | .id')
 
   if [ -z "$ORG_ID" ]; then
-    echo "Creating new organization: $ORG_NAME"
+    echo "Creating new organization: $ORG_NAME" >&2
     ORG_ID=$(curl -s -X POST -u "$GRAFANA_ADMIN_USER:$GRAFANA_ADMIN_PASS" \
       -H "Content-Type: application/json" \
       -d "{\"name\":\"$ORG_NAME\"}" \
       "$GRAFANA_URL/api/orgs" | jq -r '.orgId')
   fi
-  echo "Using organization ID: $ORG_ID"
-  
+  echo "Using organization ID: $ORG_ID" >&2
+
   # Switch to the organization context
   curl -s -X POST -u "$GRAFANA_ADMIN_USER:$GRAFANA_ADMIN_PASS" \
     -H "Content-Type: application/json" \
     -d "{\"orgId\":$ORG_ID}" \
     "$GRAFANA_URL/api/user/using/$ORG_ID" >/dev/null
-  
-  echo "Switched to organization: $ORG_NAME"
+
+  echo "Switched to organization: $ORG_NAME" >&2
+
+  # Only output the org id on stdout so callers that capture the output get a clean id
   echo "$ORG_ID"
 }
 
@@ -193,6 +195,16 @@ for TENANT in $TENANTS; do
   create_datasource "$TENANT" "Loki" "loki" "http://loki:3100" "loki"
   create_datasource "$TENANT" "Tempo" "tempo" "http://tempo:3200" "tempo"
   create_datasource "$TENANT" "Alertmanager" "alertmanager" "http://alertmanager:9093" "alertmanager"
+
+  # Import dashboards for the organization (if the import script is present)
+  if [ -f /import_dashboards.sh ]; then
+    echo "Importing dashboards for org: $TENANT (ID: $ORG_ID)"
+    # run via sh so execute bit is not required on the mounted file
+    sh /import_dashboards.sh "$ORG_ID" "$TENANT" \
+      || echo "Warning: Dashboard import failed for $TENANT"
+  else
+    echo "No import script found at /import_dashboards.sh; skipping dashboard import"
+  fi
 done
 
 echo "Successfully configured all organizations and datasources."
