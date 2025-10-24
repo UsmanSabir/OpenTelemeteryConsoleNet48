@@ -1,0 +1,117 @@
+# version: "3.8"
+
+services:
+  mimir:
+    image: grafana/mimir:latest
+    container_name: mimir
+    command: ["-config.file=/etc/mimir/mimir.yaml"]
+    ports:
+      - "9009:9009"
+    volumes:
+      - ./grafana-mimir/config/mimir.yaml:/etc/mimir/mimir.yaml
+      - ./grafana-mimir/data:/data
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+    - GF_FEATURE_TOGGLES_ENABLE=correlations
+    ports:
+      - "3000:3000"
+    entrypoint: ["/bin/bash", "/etc/grafana/entrypoint.sh"]
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./init/entrypoint.sh:/etc/grafana/entrypoint.sh
+    depends_on:
+      - mimir
+      - prometheus
+      - loki
+      - tempo
+      - alertmanager
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - mimir
+
+  loki:
+    image: grafana/loki
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    ports:
+      - "3200:3200"   # Tempo API
+      # - "4319:4317"   # OTLP gRPC receiver
+      # - "4318:4318"   # OTLP HTTP receiver
+      - "14319:4319"  # map container’s 4319 to host’s 14319
+      - "14318:4318"  # optional http
+    command: -config.file=/etc/tempo.yaml
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo.yaml
+    
+
+  alertmanager:
+    image: prom/alertmanager
+    container_name: alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+
+  # promtail:
+    # image: grafana/promtail
+    # container_name: promtail
+    # ports:
+      # - "9080:9080"
+    # command: -config.file=/etc/promtail/promtail.yml
+    # volumes:
+      # - ./promtail/promtail.yml:/etc/promtail/promtail.yml
+      
+
+
+# Initialize grafana organizations  
+  grafana-init:
+    # image: curlimages/curl
+    # image: stedolan/jq
+    # image: alpine
+    # image: curlimages/curl:8.10.1
+    # build: ./init
+    image: badouralix/curl-jq
+    depends_on:
+      - grafana
+    volumes:
+      - ./init/create_orgs.sh:/create_orgs.sh
+    # entrypoint: ["/bin/sh", "-c", "/create_orgs.sh tenant1 tenant2"]
+    entrypoint: ["/bin/sh", "-c", "/create_orgs.sh"]
+    # command: ["tenant1","tenant2","tenant3"]  # these become $@
+    # entrypoint:
+    #   - /bin/sh
+    #   - -c
+    #   - |
+    #     set -e
+    #     apk add --no-cache curl jq
+    #     chmod +x /create_orgs.sh
+    #     /create_orgs.sh $TENANTS
+    environment:
+      - GRAFANA_URL=http://grafana:3000
+      - GRAFANA_ADMIN_USER=admin
+      - GRAFANA_ADMIN_PASS=admin
+      - MIMIR_URL=http://mimir:9009/prometheus
+      - TENANTS=tenant1 tenant2
+
+    # entrypoint: ["/bin/sh", "-c"]    
+    # command: |
+    #   "sleep 15 &&
+    #    curl -X POST http://admin:admin@grafana:3000/api/orgs -H 'Content-Type: application/json' -d '{\"name\":\"Tenant1\"}' &&
+    #    curl -X POST http://admin:admin@grafana:3000/api/orgs -H 'Content-Type: application/json' -d '{\"name\":\"Tenant2\"}'"

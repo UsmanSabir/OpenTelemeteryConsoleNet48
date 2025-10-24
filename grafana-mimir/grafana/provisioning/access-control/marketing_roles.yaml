@@ -1,0 +1,20 @@
+roles:
+  - name: MarketingDashboardEditor
+    description: "Custom role for Marketing team."
+    permissions:
+      - action: "dashboards:edit"
+        scope: "folders:uid:marketing-folder"
+      - action: "dashboards:read"
+        scope: "folders:uid:marketing-folder"
+      - action: "datasources:query"
+        scope: "datasources:uid:marketing-ds"      
+      - action: "explore:read"
+        scope: "datasources:uid:marketing-ds"
+      - action: "dashboards:delete"
+        scope: "folders:uid:marketing-folder"
+        allow: false
+assignments:
+ teams:
+  - team: "Marketing Team"
+    roles:
+      - MarketingDashboardEditor

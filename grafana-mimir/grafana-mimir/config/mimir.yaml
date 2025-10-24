@@ -1,0 +1,49 @@
+server:
+  http_listen_port: 9009
+  log_level: info
+
+
+limits:
+  max_label_names_per_series: 100
+  ingestion_rate: 100000
+  ingestion_burst_size: 150000
+  max_global_series_per_user: 10000000
+
+
+multitenancy_enabled: true
+
+distributor:
+  ring:
+    kvstore:
+      store: memberlist
+
+ingester:
+  ring:
+    kvstore:
+      store: memberlist
+    replication_factor: 1
+
+blocks_storage:
+  backend: filesystem
+  tsdb:
+    dir: /data/tsdb
+  filesystem:
+    dir: /data/blocks
+
+
+ruler_storage:
+  backend: filesystem
+  filesystem:
+    dir: /data/rules
+
+
+alertmanager_storage:
+  backend: filesystem
+  filesystem:
+    dir: /data/alerts
+
+
+memberlist:
+  join_members:
+    - mimir:7946
+
