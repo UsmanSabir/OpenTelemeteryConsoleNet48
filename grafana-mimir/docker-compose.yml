@@ -24,6 +24,7 @@ services:
     environment:
       # - GF_FEATURE_TOGGLES_ENABLE=correlations
       - GF_FEATURE_TOGGLES_ENABLE=flameGraph traceqlSearch correlations traceQLStreaming metricsSummary traceqlEditor traceToMetrics traceToProfiles datatrails
+      # - GF_FEATURE_TOGGLES_ENABLE=flameGraph correlations traceToMetrics traceToProfiles datatrails
       - GF_INSTALL_PLUGINS=grafana-lokiexplore-app,grafana-exploretraces-app,grafana-pyroscope-app
     ports:
       - "3000:3000"
@@ -72,15 +73,6 @@ services:
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
 
-  # promtail:
-    # image: grafana/promtail
-    # container_name: promtail
-    # ports:
-      # - "9080:9080"
-    # command: -config.file=/etc/promtail/promtail.yml
-    # volumes:
-      # - ./promtail/promtail.yml:/etc/promtail/promtail.yml
-      
 
 
 # Initialize grafana organizations  
@@ -156,4 +148,16 @@ services:
   #     - mimir
   #   # environment:
   #   #   - web.enable-otlp-receiver=true
+
+    # promtail:
+    # image: grafana/promtail
+    # container_name: promtail
+    # ports:
+      # - "9080:9080"
+    # command: -config.file=/etc/promtail/promtail.yml
+    # volumes:
+      # - ./promtail/promtail.yml:/etc/promtail/promtail.yml
+      
+
+
   # https://github.com/grafana/intro-to-mltp
