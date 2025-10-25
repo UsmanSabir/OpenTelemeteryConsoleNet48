@@ -4,8 +4,11 @@ global:
 
 remote_write:
 - url: http://mimir:9009/api/v1/push
-  headers: # separate instance for each tenant
-    X-Scope-OrgID: tenant2
+
+  # is doesnot allow multi-tenant header i.e. X-Scope-OrgID
+  # https://grafana.com/docs/mimir/latest/manage/secure/authentication-and-authorization/
+  # headers: # separate instance for each tenant
+  #   X-Scope-OrgID: tenant2
   write_relabel_configs:
     # Use the extracted tenant ID from metrics
     - source_labels: ['__tenant__']
@@ -13,41 +16,65 @@ remote_write:
       action: replace
 
 
-scrape_configs:
-  # Scrape Prometheus itself
-  - job_name: prometheus
-    static_configs:
-      - targets: ["prometheus:9090"]
+# scrape_configs:
+#   # Scrape Prometheus itself
+#   - job_name: prometheus
+#     static_configs:
+#       - targets: ["prometheus:9090"]
 
-  # Scrape Loki metrics
-  - job_name: loki
-    static_configs:
-      - targets: ["loki:3100"]
+#   # Scrape Loki metrics
+#   - job_name: loki
+#     static_configs:
+#       - targets: ["loki:3100"]
 
-  # Scrape Tempo metrics
-  - job_name: tempo
-    static_configs:
-      - targets: ["tempo:3200"]
+#   # Scrape Tempo metrics
+#   - job_name: tempo
+#     static_configs:
+#       - targets: ["tempo:3200"]
 
-  # Scrape Promtail metrics
-  - job_name: promtail
-    static_configs:
-      - targets: ["promtail:9080"]
+#   # Scrape Promtail metrics
+#   - job_name: promtail
+#     static_configs:
+#       - targets: ["promtail:9080"]
       
-  - job_name: 'system-metrics'
-    metrics_path: /metrics
-    honor_labels: true  # Keep original labels from OTEL collector
-    metric_relabel_configs:
-      # Extract tenant ID from metrics labels
-      - source_labels: ['x_scope_orgid']
-        target_label: '__tenant__'
-        action: replace
-      # Make a readable label so you can query it easily: tenant="tenant2"
-      - source_labels: ['X-Scope-OrgID']
-        target_label: 'tenant'
-        action: replace
+#   - job_name: 'system-metrics'
+#     metrics_path: /metrics
+#     honor_labels: true  # Keep original labels from OTEL collector
+#     metric_relabel_configs:
+#       # Extract tenant ID from metrics labels
+#       - source_labels: ['x_scope_orgid']
+#         target_label: '__tenant__'
+#         action: replace
+#       # Make a readable label so you can query it easily: tenant="tenant2"
+#       - source_labels: ['X-Scope-OrgID']
+#         target_label: 'tenant'
+#         action: replace
 
-    static_configs:
-      - targets: ['host.docker.internal:8889']
-        labels:
-          instance: "backend-api"
+#     static_configs:
+#       - targets: ['host.docker.internal:8889']
+#         labels:
+#           instance: "backend-api"
+
+# https://prometheus.io/docs/guides/opentelemetry/
+otlp:
+  # Recommended attributes to be promoted to labels.
+  promote_resource_attributes:
+    - service.instance.id
+    - service.name
+    - service.namespace
+    - service.version
+    - cloud.availability_zone
+    - cloud.region
+    - container.name
+    - deployment.environment
+    - deployment.environment.name
+    - k8s.cluster.name
+    - k8s.container.name
+    - k8s.cronjob.name
+    - k8s.daemonset.name
+    - k8s.deployment.name
+    - k8s.job.name
+    - k8s.namespace.name
+    - k8s.pod.name
+    - k8s.replicaset.name
+    - k8s.statefulset.name

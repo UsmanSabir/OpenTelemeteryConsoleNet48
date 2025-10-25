@@ -4,11 +4,16 @@ services:
   mimir:
     image: grafana/mimir:latest
     container_name: mimir
-    command: ["-config.file=/etc/mimir/mimir.yaml"]
+    command:
+      - -config.file=/etc/mimir/mimir.yaml
+      # - -query-frontend.query-result-response-format=json
+      # - -distributor.otel-promote-resource-attributes=true
+      # - "-distributor.otel-promote-resource-attributes=service.instance.id,service.name,service.namespace,service.version,cloud.availability_zone,cloud.region"
+      - "-validation.max-native-histogram-buckets=160"
     ports:
-      - "9009:9009"
+      - "9009:9009"      
     volumes:
-      - ./grafana-mimir/config/mimir.yaml:/etc/mimir/mimir.yaml
+      - ./grafana-mimir/config/mimir.yaml:/etc/mimir/mimir.yaml:ro
       - ./grafana-mimir/data:/data
 
   grafana:
@@ -30,15 +35,24 @@ services:
       - tempo
       - alertmanager
 
-  prometheus:
-    image: prom/prometheus
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-    depends_on:
-      - mimir
+  # prometheus:
+  #   image: prom/prometheus
+  #   container_name: prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #     - '--web.console.libraries=/etc/prometheus/console_libraries'
+  #     - '--web.console.templates=/etc/prometheus/consoles'
+  #     - '--web.enable-lifecycle'
+  #     - '--web.enable-otlp-receiver'
+  #   depends_on:
+  #     - mimir
+  #   # environment:
+  #   #   - web.enable-otlp-receiver=true
 
   loki:
     image: grafana/loki
@@ -85,6 +99,11 @@ services:
 # Initialize grafana organizations  
 # Switch to LF from CRLF from vscode bottom right. Ref: https://stevelasker.blog/2016/09/22/running-scripts-in-a-docker-container-from-windows-cr-or-crlf/
   grafana-init:
+    restart: "no"   # ensure it won't be restarted
+    # NOTE: docker-compose cannot auto-remove a named service container after it exits.
+    # To have the container removed on completion, start it as a one-off:
+    #   docker-compose run --rm grafana-init
+
     # image: curlimages/curl
     # image: stedolan/jq
     # image: alpine

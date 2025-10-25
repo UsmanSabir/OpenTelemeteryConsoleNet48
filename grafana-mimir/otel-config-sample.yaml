@@ -1,4 +1,3 @@
-# .\otelcol-contrib.exe   --config=config.yaml
 receivers:
   # Collect Windows performance counters
   windowsperfcounters:
@@ -112,13 +111,13 @@ exporters:
     # tls:
       # insecure: true
 
-  # Data sources: metrics
-  prometheus:
-    endpoint: 0.0.0.0:8889
-    # namespace: default
-    send_timestamps: true
-    resource_to_telemetry_conversion:
-      enabled: true 
+  # # Data sources: metrics
+  # prometheus:
+  #   endpoint: 0.0.0.0:8889    
+  #   # namespace: default
+  #   send_timestamps: true
+  #   resource_to_telemetry_conversion:
+  #     enabled: true 
     
   otlp/tempo:
     endpoint: "localhost:14319"
@@ -146,14 +145,41 @@ exporters:
       # attributes:
         # trace_id: traceid
         # span_id: spanid
-      
+  
+  # https://grafana.com/docs/mimir/latest/configure/configure-otel-collector/#configure-the-opentelemetry-collector-to-write-metrics-into-mimir
+  # https://grafana.com/docs/mimir/latest/manage/secure/authentication-and-authorization/
+  otlphttp/mimir:
+    endpoint: http://localhost:9009/otlp
+    # endpoint: http://localhost:8000/otlp
+    auth:
+      authenticator: headers_setter
+    tls:
+      insecure: true
+
+  otlphttp/prometheus:
+    endpoint: http://localhost:9090/api/v1/otlp
+    # endpoint: http://localhost:8000?http://localhost:9090/api/v1/otlp
+    auth:
+      authenticator: headers_setter
+    tls:
+      insecure: true
+    
   # Data sources: metrics
-  # prometheusremotewrite:
-    # endpoint: http://prometheus.example.com:9411/api/prom/push
+  # https://grafana.com/docs/mimir/latest/configure/configure-otel-collector
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/exporter/prometheusremotewriteexporter/README.md
+  prometheusremotewrite:
+    endpoint: http://localhost:9009/api/v1/push
+    # endpoint: http://localhost:8000/api/v1/push
+    auth:
+      authenticator: headers_setter
     # When using the official Prometheus (running via Docker)
-    # endpoint: 'http://prometheus:9090/api/v1/write', add:
-    # tls:
-    #   insecure: true
+    # endpoint: 'http://prometheus:9090/api/v1/write'
+    tls:
+      insecure: true
+    resource_to_telemetry_conversion:
+      enabled: true # Convert resource attributes to metric labels
+    # protobuf_message: io.prometheus.write.v2.Request
+      
 
   # Data sources: traces
   # zipkin:
@@ -161,21 +187,43 @@ exporters:
 
 processors:
   batch:
+    timeout: 5s
+    send_batch_size: 100
     metadata_keys:
       - X-Scope-OrgID
   
+  attributes/header_to_resource:
+    actions:
+      # pull X-Scope-OrgID from incoming request header and insert into resource attr x_scope_orgid
+      - action: upsert
+        key: x_scope_orgid
+        from_context: request.header.x-scope-orgid
+        # default: unknown
+        # target: resource
+
+
 # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/extension/headerssetterextension/README.md
 extensions:
   headers_setter:
     headers:
       - action: upsert
         key: X-Scope-OrgID
+        # from_context: request.header.x-scope-orgid
         from_context: X-Scope-OrgID
         # default_value: tenant2
   
 service:
   extensions: [headers_setter]
   telemetry:
+    # https://opentelemetry.io/docs/collector/internal-telemetry/
+    metrics: #collector own telemetry is exposed
+      readers:
+        - pull:
+            exporter: 
+              prometheus:
+                # endpoint: 0.0.0.0:8989
+                host: "0.0.0.0"
+                port: 8989
     logs:
       level: debug
       
@@ -183,8 +231,11 @@ service:
     metrics:
       # receivers: [windowsperfcounters,windowsperfcounters/wcf,otlp]
       receivers: [otlp]
+      # processors: [attributes/header_to_resource]
       processors: [batch]
-      exporters: [prometheus,file]
+      exporters: [otlphttp/mimir,file]
+      # exporters: [prometheusremotewrite,file]
+      # exporters: [prometheusremotewrite,prometheus,file]
     
     logs:
       #receivers: [windowseventlog, windowseventlog/app, otlp]

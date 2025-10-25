@@ -2,6 +2,8 @@ server:
   http_listen_port: 9009
   log_level: info
 
+multitenancy_enabled: true
+
 
 limits:
   max_label_names_per_series: 100
@@ -9,8 +11,19 @@ limits:
   ingestion_burst_size: 150000
   max_global_series_per_user: 10000000
 
+  # Allow ingestion of out-of-order samples up to 5 minutes since the latest received sample for the series.
+  out_of_order_time_window: 5m
 
-multitenancy_enabled: true
+  # Keep identifying resource attributes in target_info metric
+  otel_keep_identifying_resource_attributes: true  
+  # Promote specific OTel resource attributes to labels
+  promote_otel_resource_attributes: "service.instance.id, service.name, service.namespace, service.version, client"
+  native_histograms_ingestion_enabled: true
+  
+
+# # If you're using query sharding, also set:
+# frontend:
+  # query_result_response_format: protobuf
 
 distributor:
   ring:

@@ -12,8 +12,8 @@ MIMIR_URL=${MIMIR_URL:-http://mimir:9009/prometheus}
 
 # Convert space-separated TENANTS env var into array
 if [ -z "$TENANTS" ]; then
-    echo "Warning: No TENANTS specified, defaulting to 'Main'"
-    TENANTS="Main"
+    echo "Warning: No TENANTS specified" # , defaulting to 'Main'"
+    # TENANTS="Main"
 fi
 
 # Verify required tools
@@ -27,6 +27,37 @@ wait_for_grafana() {
     sleep 2
   done
   echo "Grafana is ready."
+}
+
+
+rename_main_org() {
+  echo "Checking for 'Main Org.' to rename to 'Main'..." >&2
+  wait_for_grafana
+
+  MAIN_ORG_ID=$(curl -s -u "$GRAFANA_ADMIN_USER:$GRAFANA_ADMIN_PASS" "$GRAFANA_URL/api/orgs" | \
+    jq -r '.[] | select(.name=="Main Org.") | .id')
+
+  if [ -z "$MAIN_ORG_ID" ]; then
+    echo "No 'Main Org.' found; nothing to rename." >&2
+    return 0
+  fi
+
+  # If an org named "Main" already exists, skip to avoid conflict
+  MAIN_EXISTS=$(curl -s -u "$GRAFANA_ADMIN_USER:$GRAFANA_ADMIN_PASS" "$GRAFANA_URL/api/orgs" | \
+    jq -r '.[] | select(.name=="Main") | .id')
+
+  if [ -n "$MAIN_EXISTS" ]; then
+    echo "'Main' already exists (id: $MAIN_EXISTS); skipping rename to avoid conflict." >&2
+    return 0
+  fi
+
+  echo "Renaming org id $MAIN_ORG_ID from 'Main Org.' to 'Main'..." >&2
+  curl -s -X PUT -u "$GRAFANA_ADMIN_USER:$GRAFANA_ADMIN_PASS" \
+    -H "Content-Type: application/json" \
+    -d "{\"name\":\"Main\"}" \
+    "$GRAFANA_URL/api/orgs/$MAIN_ORG_ID" >/dev/null
+
+  echo "Rename complete for org id $MAIN_ORG_ID." >&2
 }
 
 # Create or get organization
@@ -186,7 +217,15 @@ EOF
 # Main execution
 wait_for_grafana
 
+# Run on startup
+rename_main_org 
+
 # Process each tenant
+if [ -z "$TENANTS" ]; then
+  echo "No TENANTS specified; nothing to do." >&2
+  exit 0
+fi
+
 for TENANT in $TENANTS; do
   ORG_ID=$(create_org "$TENANT")
   
