@@ -10,6 +10,8 @@ services:
       # - -distributor.otel-promote-resource-attributes=true
       # - "-distributor.otel-promote-resource-attributes=service.instance.id,service.name,service.namespace,service.version,cloud.availability_zone,cloud.region"
       - "-validation.max-native-histogram-buckets=160"
+      - "-ingester.native-histograms-ingestion-enabled=true"
+    #  command: ["-ingester.native-histograms-ingestion-enabled=true", "-config.file=/etc/mimir.yaml"]
     ports:
       - "9009:9009"      
     volumes:
@@ -20,7 +22,9 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     environment:
-    - GF_FEATURE_TOGGLES_ENABLE=correlations
+      # - GF_FEATURE_TOGGLES_ENABLE=correlations
+      - GF_FEATURE_TOGGLES_ENABLE=flameGraph traceqlSearch correlations traceQLStreaming metricsSummary traceqlEditor traceToMetrics traceToProfiles datatrails
+      - GF_INSTALL_PLUGINS=grafana-lokiexplore-app,grafana-exploretraces-app,grafana-pyroscope-app
     ports:
       - "3000:3000"
     # entrypoint: ["/bin/bash", "/etc/grafana/entrypoint.sh"]
@@ -28,31 +32,13 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning
       - ./grafana/dashboards:/var/lib/grafana/dashboards
       - ./init/entrypoint.sh:/etc/grafana/entrypoint.sh
+
     depends_on:
       - mimir
-      - prometheus
+      # - prometheus
       - loki
       - tempo
       - alertmanager
-
-  # prometheus:
-  #   image: prom/prometheus
-  #   container_name: prometheus
-  #   ports:
-  #     - "9090:9090"
-  #   volumes:
-  #     - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-  #   command:
-  #     - '--config.file=/etc/prometheus/prometheus.yml'
-  #     - '--storage.tsdb.path=/prometheus'
-  #     - '--web.console.libraries=/etc/prometheus/console_libraries'
-  #     - '--web.console.templates=/etc/prometheus/consoles'
-  #     - '--web.enable-lifecycle'
-  #     - '--web.enable-otlp-receiver'
-  #   depends_on:
-  #     - mimir
-  #   # environment:
-  #   #   - web.enable-otlp-receiver=true
 
   loki:
     image: grafana/loki
@@ -61,7 +47,8 @@ services:
       - "3100:3100"
     volumes:
       - ./loki/config.yaml:/etc/loki/local-config.yaml
-    command: -config.file=/etc/loki/local-config.yaml
+    # command: -config.file=/etc/loki/local-config.yaml
+    command: ["--pattern-ingester.enabled=true", "-config.file=/etc/loki/local-config.yaml"]
 
   tempo:
     image: grafana/tempo:latest
@@ -149,3 +136,24 @@ services:
     #    curl -X POST http://admin:admin@grafana:3000/api/orgs -H 'Content-Type: application/json' -d '{\"name\":\"Tenant1\"}' &&
     #    curl -X POST http://admin:admin@grafana:3000/api/orgs -H 'Content-Type: application/json' -d '{\"name\":\"Tenant2\"}'"
 # call as "docker-compose run --rm -e TENANTS="tenant6 tenant7" grafana-init"
+
+
+  # prometheus:
+  #   image: prom/prometheus
+  #   container_name: prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #     - '--web.console.libraries=/etc/prometheus/console_libraries'
+  #     - '--web.console.templates=/etc/prometheus/consoles'
+  #     - '--web.enable-lifecycle'
+  #     - '--web.enable-otlp-receiver'
+  #   depends_on:
+  #     - mimir
+  #   # environment:
+  #   #   - web.enable-otlp-receiver=true
+  # https://github.com/grafana/intro-to-mltp
