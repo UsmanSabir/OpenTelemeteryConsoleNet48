@@ -57,7 +57,21 @@ receivers:
     protocols:
       grpc:
       http:
+        include_metadata: true  # ⬅️ Required for header forwarding
 
+  prometheus:
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/prometheusreceiver/README.md
+    config:      
+      scrape_configs:
+        - job_name: "sql_exporter"
+          scrape_interval: 15s
+          static_configs:
+            - targets: ["localhost:9399"]
+        - job_name: "otel-collector"
+          scrape_interval: 5s
+          static_configs:
+            - targets: ["localhost:9464"]
+  
   windowsperfcounters/wcf:
     metrics:
       wcf.requests:
@@ -115,6 +129,8 @@ exporters:
 
   otlp/tempo:
     endpoint: "localhost:14319"
+    auth:
+      authenticator: headers_setter
     tls:
       insecure: true
       
@@ -147,12 +163,33 @@ exporters:
 
 processors:
   batch:
+    metadata_keys:
+      - X-Scope-OrgID
+      
+  resource/add_tenant:
+    attributes:
+      - key: X-Scope-OrgID
+        action: upsert
+        from_attribute: http.header.x-scope-orgid  # ⬅️ Read tenant header
   
-  
+
+# https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/extension/headerssetterextension/README.md
+extensions:
+  headers_setter:
+    headers:
+      - action: upsert
+        key: X-Scope-OrgID
+        from_context: X-Scope-OrgID
+        
 service:
+  extensions: [headers_setter]
+  telemetry:
+    logs:
+      level: debug
+  
   pipelines:
     metrics:
-      receivers: [windowsperfcounters,windowsperfcounters/wcf,otlp]      
+      receivers: [prometheus,windowsperfcounters,windowsperfcounters/wcf,otlp]      
       # receivers: [otlp]
       processors: [batch]
       # exporters: [prometheus,debug]
