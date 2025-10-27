@@ -56,6 +56,7 @@ receivers:
   otlp:
     protocols:
       grpc:
+        include_metadata: true  # ⬅️ Required for header forwarding
       http:
         include_metadata: true  # ⬅️ Required for header forwarding
 
@@ -125,7 +126,15 @@ exporters:
   # Data sources: metrics
   prometheus:
     endpoint: 0.0.0.0:8889
-    # namespace: default
+    resource_to_telemetry_conversion:
+      enabled: true
+  
+  # either change port to avoid conflict with above, or use nolabels to avoid label bloat
+  # prometheus/nolabels:
+  #   endpoint: 0.0.0.0:8889
+    
+  
+  # namespace: default
 
   otlp/tempo:
     endpoint: "localhost:14319"
@@ -194,7 +203,11 @@ service:
       processors: [batch]
       # exporters: [prometheus,debug]
       exporters: [prometheus]
-    
+    # metrics/2:
+    #   receivers: [prometheus]
+    #   processors: [batch]      
+    #   exporters: [prometheus/nolabels]
+      
     logs:
       receivers: [windowseventlog, windowseventlog/app, otlp]
       # receivers: [otlp]

@@ -93,6 +93,7 @@ services:
       - "--config.file=/config/sql_exporter.yml"
 
    # --- Telegraf ---
+   # https://grafana.com/grafana/dashboards/11517-sql-server-monitoring/
   telegraf:
     image: telegraf:latest # 1.31
     container_name: telegraf
