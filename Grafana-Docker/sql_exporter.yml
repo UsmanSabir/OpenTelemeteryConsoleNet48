@@ -1,0 +1,49 @@
+# https://github.com/burningalchemist/sql_exporter
+global:
+  # Subtracted from Prometheus' scrape_timeout to give us some headroom and prevent Prometheus from
+  # timing out first.
+  scrape_timeout_offset: 500ms
+  # Minimum interval between collector runs: by default (0s) collectors are executed on every scrape.
+  min_interval: 0s
+  # Maximum number of open connections to any one target. Metric queries will run concurrently on
+  # multiple connections.
+  max_connections: 3
+  # Maximum number of idle connections to any one target.
+  max_idle_connections: 3
+  # Maximum amount of time a connection may be reused to any one target. Infinite by default.
+  max_connection_lifetime: 10m
+
+target:
+  name: "a2dev165_db"
+  data_source_name: "sqlserver://sa:Netsolpk1!@10.39.1.165:1433" # ?encrypt=disable
+   # Collectors (referenced by name) to execute on the target.
+  # Glob patterns are supported (see <https://pkg.go.dev/path/filepath#Match> for syntax).
+  collectors: [mssql_stats]
+
+collectors:
+  - collector_name: "mssql_stats"
+    metrics:
+      - metric_name: mssql_database_size_mb
+        type: gauge
+        help: "Database size in MB"
+        key_labels:
+          - database_name
+        values: [size_mb]
+        query: |
+          SELECT
+            DB_NAME(database_id) AS database_name,
+            CAST(SUM(size) * 8 / 1024 AS FLOAT) AS size_mb
+          FROM sys.master_files
+          GROUP BY database_id
+
+      - metric_name: mssql_connections
+        type: gauge
+        help: "Active connections per database"
+        key_labels:
+          - database_name
+        values: [connections]
+        query: |
+          SELECT DB_NAME(dbid) AS database_name, COUNT(dbid) AS connections
+          FROM sys.sysprocesses
+          WHERE dbid > 0
+          GROUP BY dbid

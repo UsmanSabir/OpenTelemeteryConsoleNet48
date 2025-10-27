@@ -28,3 +28,9 @@ scrape_configs:
       - targets: ['host.docker.internal:8889']
         labels:
           instance: "backend-api"
+
+  - job_name: 'mssql'
+    static_configs:
+      - targets: ['prometheus-mssql-exporter:4000'] # ['host.docker.internal:4000']
+        labels:
+          instance: "a2dev165"
