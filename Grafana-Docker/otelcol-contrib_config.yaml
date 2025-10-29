@@ -1,3 +1,4 @@
+# set environment varialbe like $env:SERVER_HOST = "127.0.0.1"
 receivers:
   # Collect Windows performance counters
   windowsperfcounters:
@@ -67,11 +68,11 @@ receivers:
         - job_name: "sql_exporter"
           scrape_interval: 15s
           static_configs:
-            - targets: ["localhost:9399"]
+            - targets: ["${SERVER_HOST}:9399"]
         - job_name: "otel-collector"
           scrape_interval: 5s
           static_configs:
-            - targets: ["localhost:9464"]
+            - targets: ["${SERVER_HOST}:9464"]
   
   windowsperfcounters/wcf:
     metrics:
@@ -128,21 +129,25 @@ exporters:
     endpoint: 0.0.0.0:8889
     resource_to_telemetry_conversion:
       enabled: true
-  
-  # either change port to avoid conflict with above, or use nolabels to avoid label bloat
   # prometheus/nolabels:
-  #   endpoint: 0.0.0.0:8889
-    
+  #   endpoint: a2dev165:8889
+    # resource_to_telemetry_conversion:
+      # enabled: true
   
   # namespace: default
 
   otlp/tempo:
-    endpoint: "localhost:14319"
+    endpoint: "${SERVER_HOST}:14319"
     auth:
       authenticator: headers_setter
     tls:
       insecure: true
-      
+  
+  # https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/exporterhelper/README.md
+  otlp/vm:
+    endpoint: 10.15.217.101:4317
+    tls:
+      insecure: true
   # loki:
     # endpoint: "http://localhost:3100/loki/api/v1/push"
     # default_labels_enabled:
@@ -155,9 +160,9 @@ exporters:
     # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/release/v0.130.x/exporter/lokiexporter/README.md#migration-instructions
     # https://github.com/grafana/grafana-opentelemetry-dotnet/blob/main/docs/configuration.md
     #endpoint: http://localhost:3100/otlp/v1/logs
-    endpoint: http://localhost:3100/otlp
+    endpoint: http://${SERVER_HOST}:3100/otlp
 
-      
+     
   # Data sources: metrics
   # prometheusremotewrite:
     # endpoint: http://prometheus.example.com:9411/api/prom/push
@@ -193,30 +198,31 @@ extensions:
 service:
   extensions: [headers_setter]
   telemetry:
+  # https://opentelemetry.io/docs/collector/troubleshooting/
     logs:
       level: debug
   
   pipelines:
     metrics:
-      receivers: [prometheus,windowsperfcounters,windowsperfcounters/wcf,otlp]      
-      # receivers: [otlp]
+      # receivers: [windowsperfcounters,windowsperfcounters/wcf,otlp]
+      receivers: [otlp]
       processors: [batch]
-      # exporters: [prometheus,debug]
-      exporters: [prometheus]
+      exporters: [prometheus,otlp/vm]
+      # exporters: [prometheus]
     # metrics/2:
     #   receivers: [prometheus]
     #   processors: [batch]      
     #   exporters: [prometheus/nolabels]
       
     logs:
-      receivers: [windowseventlog, windowseventlog/app, otlp]
-      # receivers: [otlp]
+      # receivers: [windowseventlog, windowseventlog/app, otlp]
+      receivers: [otlp]
       processors: [batch]
-      exporters: [otlphttp/loki,debug]
+      exporters: [otlphttp/loki, otlp/vm]
       # exporters: [debug]
 
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlp/tempo,debug]
+      exporters: [otlp/tempo,otlp/vm]
       # exporters: [debug]
